@@ -10,6 +10,7 @@
 #include "common/FmtCore.h"
 #include "common/PluginUtils.h"
 #include "nvqir/CircuitSimulator.h"
+#include "cudaq/Support/Plugin.h"
 #include "cudaq/Target/TargetConfigYaml.h"
 #include "cudaq/platform/quantum_platform.h"
 #include "cudaq/runtime/logger/logger.h"
@@ -215,27 +216,6 @@ LinkedLibraryHolder::LinkedLibraryHolder() : availablePlatforms{"default"} {
     findAvailableTargets(targetPath, targets, simulationTargets);
   }
 
-  const char *backendPathVar = std::getenv("CUDAQ_BACKEND_PATH");
-  if (backendPathVar) {
-    // Back-compat: a colon-separated list of plugin roots, equivalent to
-    // calling registerBackendPath() on each. Prefer the Python API
-    // `cudaq.register_backend_path(...)` going forward for clearer
-    // per-package attribution; invalid CUDAQ_BACKEND_PATH entries are logged
-    // and skipped.
-    std::string entry;
-    std::stringstream ss(backendPathVar);
-    while (std::getline(ss, entry, ':')) {
-      if (entry.empty())
-        continue;
-      try {
-        cudaq::registerBackendPath(entry, targets, simulationTargets);
-      } catch (const std::exception &e) {
-        CUDAQ_INFO("CUDAQ_BACKEND_PATH entry '{}' skipped: {}", entry,
-                   e.what());
-      }
-    }
-  }
-
   CUDAQ_INFO("Init: Library Path is {}.", cudaqLibPath.string());
 
   // Load nvqir, cudaq, and the default execution manager. The em cannot
@@ -353,6 +333,20 @@ void LinkedLibraryHolder::ensureLibLoaded(const std::filesystem::path &path) {
                     (error_msg ? std::string(error_msg) : "unknown")));
   }
   libHandles.emplace(pathStr, handle);
+
+  // If the library exports cudaqGetPluginInfo, call it to register any MLIR
+  // passes or other extensions provided by the plugin.
+  using PluginInfoFn = cudaq::PluginLibraryInfo (*)();
+  auto *getInfoFn =
+      reinterpret_cast<PluginInfoFn>(dlsym(handle, "cudaqGetPluginInfo"));
+  if (getInfoFn) {
+    auto info = getInfoFn();
+    if (info.RegisterCallbacks) {
+      CUDAQ_INFO("Registering MLIR extensions from plugin '{}'.",
+                 info.pluginName ? info.pluginName : pathStr.c_str());
+      info.RegisterCallbacks();
+    }
+  }
 }
 
 nvqir::CircuitSimulator *
@@ -497,6 +491,25 @@ void LinkedLibraryHolder::setTarget(
   const std::string targetConfigStr =
       cudaq::config::processRuntimeArgs(target.config, extraConfig);
   parseRuntimeTarget(cudaqLibPath, target, targetConfigStr);
+
+  if (!target.config.PluginLibraries.empty()) {
+    const auto pythonCAPIName =
+        fmt::format("libCUDAQuantumPythonCAPI.{}", libSuffix);
+    std::vector<std::filesystem::path> pythonCAPICandidates{
+        cudaqLibPath.parent_path() / "cudaq" / "mlir" / "_mlir_libs" /
+            pythonCAPIName,
+        cudaqLibPath.parent_path() / "python" / "cudaq" / "mlir" /
+            "_mlir_libs" / pythonCAPIName};
+    for (const auto &candidatePath : pythonCAPICandidates) {
+      if (!std::filesystem::exists(candidatePath))
+        continue;
+
+      CUDAQ_INFO("Loading CUDA-Q Python CAPI '{}' for plugin MLIR symbols.",
+                 candidatePath.string());
+      ensureLibLoaded(candidatePath);
+      break;
+    }
+  }
 
   for (const auto &pluginLibrary : target.config.PluginLibraries) {
     std::filesystem::path pluginLibraryPath(pluginLibrary);

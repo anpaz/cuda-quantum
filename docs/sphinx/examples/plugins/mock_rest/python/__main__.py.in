@@ -6,29 +6,14 @@
 # the terms of the Apache License 2.0 which accompanies this distribution.     #
 # ============================================================================ #
 
-from .preallocated_qubits_context import PreallocatedQubitsContext
-
-# Default ports for each mock QPU backend
-MOCK_QPU_PORTS = {
-    "quantinuum": 62440,
-    "ionq": 62441,
-    "oqc": 62442,
-    "iqm": 62443,
-    "braket": 62445,
-    "anyon": 62446,
-    "infleqtion": 62447,
-    "quantum_machines": 62448,
-    "qci": 62449,
-    "scaleway": 62450,
-    "tii": 62451,
-    "qbraid": 62452,
-    "echo": 62454,
-}
+PACKAGE_NAME = "@plugin_python_package@"
+PLUGIN_NAME = "@plugin_python_install_name@"
 
 
-def get_backend_port(backend: str) -> int:
-    return MOCK_QPU_PORTS[backend]
+def main() -> int:
+    from cudaq.plugins import install_plugin_for_nvqpp_main
+    return install_plugin_for_nvqpp_main(PACKAGE_NAME, PLUGIN_NAME)
 
 
-def all_backend_names() -> list[str]:
-    return list(MOCK_QPU_PORTS.keys())
+if __name__ == "__main__":
+    raise SystemExit(main())
