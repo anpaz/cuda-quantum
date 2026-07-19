@@ -130,9 +130,20 @@ struct BackendEndConfigEntry {
   SimulationBackendSetting SimulationBackend;
   /// Any conditional compile/link flags configurations.
   std::vector<ConditionalBuildConfig> ConditionalBuildConfigs;
+  /// Observe execution mode for REST backends using `platform-qpu: remote_rest`.
+  /// Empty / unset defaults to client-side Pauli-term splitting.
+  /// Set to `server-side` to keep the full observable intact, attach it on the
+  /// single KernelExecution as `user_data["observable"]`, and let the backend
+  /// return an expectation value (Fermioniq / QESEM-style observe).
+  std::string ObserveMode;
 
   /// Returns true if any pass pipeline fields are configured.
   bool hasPassPipeline() const;
+
+  /// True when `ObserveMode` requests server-side observable evaluation.
+  bool isServerSideObserve() const {
+    return ObserveMode == "server-side";
+  }
 };
 
 /// Feature option mapping for NVIDIA target.

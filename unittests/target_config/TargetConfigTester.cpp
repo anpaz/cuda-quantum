@@ -67,6 +67,33 @@ config:
   EXPECT_EQ(config.CudaqVersion, "0.9.0-rc2+build.1");
 }
 
+TEST(TargetConfigTester, parsesObserveModeServerSide) {
+  const auto config = cudaq::config::parseTargetConfig(R"(
+name: observe-mode-test
+description: Observe mode parsing test
+config:
+  platform-qpu: remote_rest
+  observe-mode: server-side
+  library-mode: false
+)");
+  ASSERT_TRUE(config.BackendConfig.has_value());
+  EXPECT_EQ(config.BackendConfig->ObserveMode, "server-side");
+  EXPECT_TRUE(config.BackendConfig->isServerSideObserve());
+}
+
+TEST(TargetConfigTester, observeModeDefaultsOff) {
+  const auto config = cudaq::config::parseTargetConfig(R"(
+name: observe-mode-default
+description: Observe mode default
+config:
+  platform-qpu: remote_rest
+  library-mode: false
+)");
+  ASSERT_TRUE(config.BackendConfig.has_value());
+  EXPECT_TRUE(config.BackendConfig->ObserveMode.empty());
+  EXPECT_FALSE(config.BackendConfig->isServerSideObserve());
+}
+
 TEST(TargetConfigTester, missingTargetConfigThrows) {
   const auto missingPath = std::filesystem::temp_directory_path() /
                            "cudaq-missing-target-config.yml";

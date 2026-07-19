@@ -200,6 +200,15 @@ Key fields:
   for compatibility.
 - ``platform-qpu: remote_rest`` — use the built-in REST QPU (no custom QPU
   subclass needed).
+- ``observe-mode: server-side`` — optional. When set, ``cudaq.observe`` does
+  **not** split the observable into per-Pauli measurement circuits. CUDA-Q
+  emits one preparation circuit and attaches the full spin operator on
+  ``KernelExecution::user_data["observable"]`` as a JSON array of
+  ``[term_id, coefficient]`` pairs (same format as the in-tree Fermioniq
+  backend). Your ``ServerHelper::createJob`` should read that field and return
+  an expectation via ``processResults`` (``ExecutionResult(double)``). Omit
+  this key (default) for sample-style backends that reconstruct
+  :math:`\langle H\rangle` from shot counts on the client.
 - ``link-libs`` — libraries to link when compiling with ``nvq++``.
 - ``codegen-emission`` — the IR format sent to the provider (``qir-base``,
   ``qir-adaptive``, or ``qasm2``).
@@ -211,6 +220,30 @@ For the full list of recognized YAML fields see the mapping traits in
 `TargetConfigYaml.cpp <https://github.com/NVIDIA/cuda-quantum/blob/main/cudaq/lib/Target/Yaml/TargetConfigYaml.cpp>`_.
 For a complete working example of a REST-style plugin, see the
 `mock_rest reference plugin <https://github.com/NVIDIA/cuda-quantum/tree/main/docs/sphinx/examples/plugins/mock_rest>`_.
+
+Server-side observe (``observe-mode: server-side``)
+--------------------------------------------------
+
+Use this mode when the remote API evaluates the full observable (for example
+error-mitigated expectation services). In ``createJob``:
+
+.. code-block:: cpp
+
+    auto &circuit = circuitCodes.front();
+    if (!circuit.user_data->contains("observable"))
+      throw std::runtime_error("missing user_data[\"observable\"]");
+    auto observable = circuit.user_data->at("observable");
+    // observable is [["Z0","0.5+0.0j"], ["Z0 Z1","0.3+0.0j"], ...]
+
+Return the mitigated (or exact) expectation from ``processResults``:
+
+.. code-block:: cpp
+
+    return cudaq::sample_result(cudaq::ExecutionResult(/*value=*/0.41));
+
+Custom job lifecycles (for example create → estimate → start → poll) can be
+implemented by registering an ``Executor`` under the same target name as the
+``ServerHelper``; the plugin loader will pick it up automatically.
 
 CMake Build File
 ----------------

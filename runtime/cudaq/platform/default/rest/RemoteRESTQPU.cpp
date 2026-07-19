@@ -9,6 +9,7 @@
 #include "RemoteRESTQPU.h"
 #include "common/CompiledModule.h"
 #include "common/KernelExecution.h"
+#include "common/ObservableUserData.h"
 #include "cudaq_internal/compiler/Compiler.h"
 
 static std::vector<cudaq::KernelExecution>
@@ -21,6 +22,14 @@ runCodegen(const cudaq::CompiledModule &module,
   cudaq_internal::compiler::Compiler compiler(std::move(target));
   return compiler.emitKernelExecutions(module);
 }
+
+namespace {
+
+bool isServerSideObserve(const cudaq::config::TargetConfig &config) {
+  return config.BackendConfig && config.BackendConfig->isServerSideObserve();
+}
+
+} // namespace
 
 using namespace cudaq;
 cudaq::RemoteRESTQPU::~RemoteRESTQPU() = default;
@@ -52,6 +61,22 @@ observe_result RemoteRESTQPU::launchKernel(const observe_policy &policy,
 
   auto target = getCompileTarget(policy);
   auto codes = runCodegen(module, std::move(target));
+
+  if (isServerSideObserve(targetConfig)) {
+    if (emulate)
+      throw std::runtime_error(
+          "observe-mode: server-side is not supported with remote_rest "
+          "emulation. Use a real remote backend or disable observe-mode.");
+    if (codes.size() != 1)
+      throw std::runtime_error(
+          "observe-mode: server-side expects a single preparation circuit.");
+    attachObservableUserData(codes[0], policy.spin);
+    // Sync remote observe goes through the async executor path (create → poll).
+    async_observe_policy asyncPolicy{policy};
+    return completeLaunchKernel(asyncPolicy, module.getName(), std::move(codes))
+        .get();
+  }
+
   return completeLaunchKernel(policy, module.getName(), std::move(codes));
 }
 
@@ -62,6 +87,14 @@ RemoteRESTQPU::launchKernel(const async_observe_policy &policy,
 
   auto target = getCompileTarget(policy.inner);
   auto codes = runCodegen(module, std::move(target));
+
+  if (isServerSideObserve(targetConfig)) {
+    if (codes.size() != 1)
+      throw std::runtime_error(
+          "observe-mode: server-side expects a single preparation circuit.");
+    attachObservableUserData(codes[0], policy.inner.spin);
+  }
+
   return completeLaunchKernel(policy, module.getName(), std::move(codes));
 }
 

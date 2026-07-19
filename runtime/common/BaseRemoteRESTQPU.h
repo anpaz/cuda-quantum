@@ -281,7 +281,13 @@ public:
     auto target = std::make_unique<BaseRemoteRESTQPUCompileTarget>(
         serverHelper.get(), targetConfig, backendConfig, emulate);
     target->overrideAOTCompilation = true;
-    target->pauliTermSplitObservable = policy.spin;
+    // Server-side observe keeps the full observable intact for the backend
+    // (see target YAML `observe-mode: server-side`).
+    if (targetConfig.BackendConfig &&
+        targetConfig.BackendConfig->isServerSideObserve())
+      target->pauliTermSplitObservable = std::nullopt;
+    else
+      target->pauliTermSplitObservable = policy.spin;
     target->pipelineConfig.replaceStateWithKernel = true;
     return target;
   }
