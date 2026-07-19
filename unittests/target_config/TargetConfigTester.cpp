@@ -94,6 +94,20 @@ config:
   EXPECT_FALSE(config.BackendConfig->isServerSideObserve());
 }
 
+TEST(TargetConfigTester, observeModeUnknownIsNotServerSide) {
+  const auto config = cudaq::config::parseTargetConfig(R"(
+name: observe-mode-unknown
+description: Unknown observe mode values must not enable server-side observe
+config:
+  platform-qpu: remote_rest
+  observe-mode: client-side
+  library-mode: false
+)");
+  ASSERT_TRUE(config.BackendConfig.has_value());
+  EXPECT_EQ(config.BackendConfig->ObserveMode, "client-side");
+  EXPECT_FALSE(config.BackendConfig->isServerSideObserve());
+}
+
 TEST(TargetConfigTester, missingTargetConfigThrows) {
   const auto missingPath = std::filesystem::temp_directory_path() /
                            "cudaq-missing-target-config.yml";

@@ -245,6 +245,15 @@ Custom job lifecycles (for example create → estimate → start → poll) can b
 implemented by registering an ``Executor`` under the same target name as the
 ``ServerHelper``; the plugin loader will pick it up automatically.
 
+Notes:
+
+* ``observe-mode: server-side`` is not supported together with remote_rest
+  emulation (local shot replay). Use a real remote endpoint for testing.
+* Synchronous ``cudaq.observe`` submits through the same remote executor path
+  as ``observe_async`` and waits for completion.
+* Only the literal value ``server-side`` enables this mode; any other string
+  (or omitting the field) keeps the default Pauli-term-split observe path.
+
 CMake Build File
 ----------------
 

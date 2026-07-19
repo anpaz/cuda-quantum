@@ -37,6 +37,24 @@ Target YAML Reference (Plugin Fields)
 The target YAML uses the same schema as in-tree targets with these
 plugin-relevant fields:
 
+``observe-mode``
+----------------
+
+Optional. Set to ``server-side`` when the remote API evaluates the full
+observable for ``cudaq.observe`` (instead of CUDA-Q splitting Pauli terms into
+measurement circuits and reconstructing :math:`\langle H\rangle` from counts).
+
+When ``observe-mode: server-side`` is set with ``platform-qpu: remote_rest``:
+
+* CUDA-Q emits a single preparation circuit (no per-term measurement rewrite).
+* The full spin operator is attached as
+  ``KernelExecution::user_data["observable"]`` (Fermioniq-compatible JSON).
+* ``ServerHelper::processResults`` should return an expectation via
+  ``ExecutionResult(double)``.
+
+Omit the field (default) for sample-style backends such as ``mock_rest``.
+See :doc:`backend` for payload and result examples.
+
 ``%PLUGIN_ROOT%``
 -----------------
 
@@ -314,11 +332,14 @@ that demonstrates the full plugin lifecycle:
      - Shape
      - What it demonstrates
    * - `mock_rest <https://github.com/NVIDIA/cuda-quantum/tree/main/docs/sphinx/examples/plugins/mock_rest>`_
-     - REST
+     - REST (sample)
      - ``ServerHelper`` subclass, ``remote_rest`` QPU, mock server testing
 
 Use this as a starter template for new plugins. It includes a complete
 build configuration, Python packaging, lit tests, and documentation.
+
+For server-side observe backends, start from the same layout and add
+``observe-mode: server-side`` as described above and in :doc:`backend`.
 
 
 Quick-Start Checklist
@@ -328,6 +349,8 @@ Quick-Start Checklist
 
     □ Implement ServerHelper subclass
     □ Create targets/<name>.yml with target configuration
+    □ If observe is server-side: set observe-mode: server-side and handle
+      user_data["observable"] + expectation results (see :doc:`backend`)
     □ Create CMakeLists.txt (build with CUDAQ_EXTERNAL_PROJECTS)
     □ Add pyproject.toml with cudaq.backends entry point
     □ Add __init__.py with register() function

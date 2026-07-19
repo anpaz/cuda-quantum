@@ -6,12 +6,16 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 
+/// Helpers for attaching a full spin_op to KernelExecution::user_data when a
+/// REST backend evaluates observables server-side (`observe-mode: server-side`
+/// on remote_rest, or an in-tree QPU such as Fermioniq).
+
 #pragma once
 
 #include "common/KernelExecution.h"
-#include "cudaq/spin_op.h"
-#include "cudaq/runtime/logger/cudaq_fmt.h"
 #include "nlohmann/json.hpp"
+#include "cudaq/runtime/logger/cudaq_fmt.h"
+#include "cudaq/spin_op.h"
 #include <cmath>
 
 namespace cudaq {

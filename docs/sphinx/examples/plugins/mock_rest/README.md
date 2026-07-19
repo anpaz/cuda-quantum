@@ -23,6 +23,31 @@ and expects that same bitstring as the sample result.
 - Optional registration of the installed package in the user plugin scope for
   `nvq++`.
 
+### Sample vs server-side observe
+
+`mock_rest` is a **sample-style** REST plugin: `cudaq.sample` / client-side
+Pauli-term observe that reconstructs \(\langle H\rangle\) from shot counts.
+
+Backends that evaluate the full observable on the server (for example
+error-mitigated expectation APIs) should keep the same packaging layout, but set
+in the target YAML:
+
+```yaml
+config:
+  platform-qpu: remote_rest
+  observe-mode: server-side
+```
+
+With `observe-mode: server-side`, CUDA-Q does not split the observable into
+per-Pauli measurement circuits. It emits one preparation circuit and attaches
+the full spin operator on `KernelExecution::user_data["observable"]` as a JSON
+array of `[term_id, coefficient]` pairs (same format as the in-tree Fermioniq
+backend). Your `ServerHelper::createJob` should read that field, and
+`processResults` should return `sample_result(ExecutionResult(expectation))`.
+
+See [Extending CUDA-Q with a new Hardware Backend](../../../using/extending/backend.rst)
+for the full contract.
+
 ## How It Works
 
 The key files are:
