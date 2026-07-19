@@ -26,7 +26,7 @@ and expects that same bitstring as the sample result.
 ### Sample vs server-side observe
 
 `mock_rest` is a **sample-style** REST plugin: `cudaq.sample` / client-side
-Pauli-term observe that reconstructs \(\langle H\rangle\) from shot counts.
+Pauli-term observe that reconstructs expectation values from shot counts.
 
 Backends that evaluate the full observable on the server (for example
 error-mitigated expectation APIs) should keep the same packaging layout, but set

@@ -241,7 +241,7 @@ Return the mitigated (or exact) expectation from ``processResults``:
 
     return cudaq::sample_result(cudaq::ExecutionResult(/*value=*/0.41));
 
-Custom job lifecycles (for example create → estimate → start → poll) can be
+Custom job life cycles (for example create → estimate → start → poll) can be
 implemented by registering an ``Executor`` under the same target name as the
 ``ServerHelper``; the plugin loader will pick it up automatically.
 
